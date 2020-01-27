@@ -18,24 +18,36 @@
             }
 
             table#entries {
-                margin-top: 1.7em;
+                margin-top: 3.3em;
                 table-layout: fixed;
             }
 
+            tr {
+                transition-property: background-color;
+                transition-duration: .1s;
+            }
+
+            tr.skip {
+                opacity: .3;
+            }
+
             tr.same td {
-                color: #4caf50;
+                /* color: #4caf50; */
+                color: #aaa;
             }
             tr.different td {
                 color: #f44336;
             }
             tr.new td {
-                color: #2196f3;
+                /* color: #2196f3; */
+                color: #4caf50;
             }
-            tbody tr:hover {
+            tbody tr:hover th, tbody tr:hover td {
                 background-color: #fff9c4;
             }
-            tbody tr:hover th {
-                background-color: transparent;
+
+            tbody tr:hover td:hover {
+                background-color: #fff6a4  !important;
             }
 
             tbody th {
@@ -44,10 +56,16 @@
 
             th {
                 background-color: #eeeeee;
+                font-weight: normal;
+                border-radius: .4em;
+                padding: .4em 0;
             }
+
             td.propval {
                 cursor: pointer;
                 word-wrap: break-word;
+                border-radius: .4em;
+                padding: .4em .2em;
             }
             td.propval:hover {
                 text-decoration: underline;
@@ -69,6 +87,19 @@
                 width: 100%;
                 background-color: white;
                 padding: .2em;
+                left: -5px;
+                box-shadow: 0 0 5px #000;
+            }
+
+            #toolbar button, #toolbar input[type="file"] {
+                padding: .4em;
+                border-radius: .4em;
+                border: 1px solid #cccccc;
+                cursor: pointer;
+            }
+
+            #toolbar button:hover, #toolbar input[type="file"]:hover {
+                background-color: #e0e0e0;
             }
 
             .finalValue  {
@@ -77,6 +108,13 @@
 
             .finalValue > input {
                 width: calc(100% - 6em);
+                padding: .4em;
+                border-radius: .4em;
+                border: 1px solid #cccccc;
+            }
+
+            .finalValue > input:focus {
+                box-shadow: inset 0 0 5px #ddd;
             }
 
             .finalValue label {
@@ -85,7 +123,15 @@
                 cursor: pointer;
             }
 
-            #filters label {
+            .finalValue label:hover {
+                color: #222222;
+            }
+
+            .finalValue label input {
+                cursor: pointer;
+            }
+
+            #filters label, #filters label input {
                 cursor: pointer;
             }
         </style>
@@ -124,11 +170,7 @@
             // handle filter clicks
             document.querySelectorAll('#filters input[type="checkbox"]').forEach((item) => {
                 item.addEventListener('change', () => {
-                    if (item.checked) {
-                        table.classList.remove(`hide${item.dataset.filter}`);
-                    } else {
-                        table.classList.add(`hide${item.dataset.filter}`);
-                    }
+                    table.classList.toggle(`hide${item.dataset.filter}`, !item.checked);
                 })
             });
 
@@ -181,6 +223,9 @@
                 span.textContent = 'include';
                 checkbox.type = 'checkbox';
                 checkbox.checked = true;
+                checkbox.addEventListener('change', () => {
+                    tr.classList.toggle('skip', !checkbox.checked);
+                });
                 span.title = "Include in final file"
 
                 label.appendChild(checkbox);

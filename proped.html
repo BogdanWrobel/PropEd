@@ -1,5 +1,5 @@
 <!doctype html>
-<html>
+<html lang="en">
     <head>
         <title>PropEd</title>
         <meta charset="utf-8">
@@ -55,7 +55,7 @@
             .hidden {
                 display: none !important;
             }
-            #downloadLink, #downloadButton {
+            #downloadLink {
                 display: none;
             }
             body {
@@ -95,7 +95,7 @@
             <input type="file" id="first">
             <input type="file" id="second">
             <button id="action" disabled="disabled">Load files</button>
-            <button id="downloadButton">Download</button>
+            <button id="downloadButton" disabled="disabled">Download</button>
             <a id="downloadLink" download="local.properties">test</a>    
         </div>
         <table id="entries">
@@ -114,13 +114,14 @@
             </tfoot>
         </table>
         <script>
-            let first = document.getElementById('first');
-            let second = document.getElementById('second');
-            let actionButton = document.getElementById('action');
-            let table = document.getElementById('entries');
-            let downloadButton = document.getElementById('downloadButton');
-            let downloadLink = document.getElementById('downloadLink');
+            const first = document.getElementById('first');
+            const second = document.getElementById('second');
+            const actionButton = document.getElementById('action');
+            const table = document.getElementById('entries');
+            const downloadButton = document.getElementById('downloadButton');
+            const downloadLink = document.getElementById('downloadLink');
 
+            // handle filter clicks
             document.querySelectorAll('#filters input[type="checkbox"]').forEach((item) => {
                 item.addEventListener('change', () => {
                     if (item.checked) {
@@ -131,8 +132,11 @@
                 })
             });
 
+            // handle load files action
             actionButton.addEventListener('click', loadFiles);
+            // handle download button
             downloadButton.addEventListener('click', collectEntries);
+            // auto-load properties
             [first, second].forEach((item) => {
                 item.addEventListener('change', (obj) => {
                     actionButton.disabled = (first.files.length == 0 || second.files.length == 0);
@@ -142,36 +146,38 @@
                 })
             });
 
+            // create table row
             function createRow(key, value1, value2) {
-                let tr = document.createElement('tr');
+                const tr = document.createElement('tr');
                 tr.id = key;
-
                 tr.classList.add(value1 == value2 ? "same" : ((value1 == "" || value2 == "") ? "new" : "different"));
 
-                let th = document.createElement('th');
+                const th = document.createElement('th');
                 th.textContent = key;
                 tr.appendChild(th);
                 [value1, value2].forEach(val => {
-                    let td = document.createElement('td');
+                    const td = document.createElement('td');
                     td.textContent = val;
                     td.classList.add('propval');
                     td.title = "Select this value";
                     td.addEventListener('click', () => {
-                        setFinalValue(key, val);
+                        document.querySelector(`input[name="${key}"]`).value = val;
                     });
                     tr.appendChild(td);
                 });
 
-                let td = document.createElement('td');
+                const td = document.createElement('td');
                 td.classList.add('finalValue');
-                let input = document.createElement('input');
+                
+                const input = document.createElement('input');
                 input.name = key;
                 input.type = 'text';
                 td.title = `Property: ${key}`;
                 td.appendChild(input);
-                let label = document.createElement('label');
-                let checkbox = document.createElement('input');
-                let span = document.createElement('span');
+
+                const label = document.createElement('label');
+                const checkbox = document.createElement('input');
+                const span = document.createElement('span');
                 span.textContent = 'include';
                 checkbox.type = 'checkbox';
                 checkbox.checked = true;
@@ -189,26 +195,40 @@
                 return tr;
             }
 
-            function setFinalValue(propname, propvalue) {
-                let input = document.querySelector(`input[name="${propname}"]`);
-                input.value = propvalue;
-            }
-
+            // load both files and create table
             async function loadFiles() {
-                let props1 = await getProperties(first.files[0]);
-                let props2 = await getProperties(second.files[0]);
+                actionButton.disabled = true;
+                downloadButton.disabled = true;
 
+                const [props1, props2] = await Promise.all([
+                    getProperties(first.files[0]),
+                    getProperties(second.files[0])
+                ]);
+
+                // set table headers
                 table.querySelectorAll('.firstFileName').forEach((th) => {
                     th.textContent = first.files[0].name;
                 });
                 table.querySelectorAll('.secondFileName').forEach((th) => {
                     th.textContent = second.files[0].name;
                 });
-                let tbody = table.querySelector('tbody');
-                tbody.childNodes.forEach((node) => {
-                    node.remove();
+
+                const tbody = table.querySelector('tbody');
+
+                // reset filters
+                ['hideSame', 'hideNew', 'hideDifferent'].forEach((name) => {
+                    table.classList.remove(name);
                 });
-                let rows = [];
+                document.querySelectorAll('#filters input[type="checkbox"]').forEach((item) => {
+                    item.checked = true;
+                });
+
+                // remove rows
+                while (tbody.firstChild) {
+                    tbody.removeChild(tbody.firstChild);
+                }
+
+                const rows = [];
 
                 for (let key in props1) {
                     if (props2.hasOwnProperty(key)) {
@@ -224,17 +244,15 @@
                 }
 
                 rows.sort((first, second) => {
-                    return first.id == second.id ? 0 : (first.id > second.id ? 1 : -1);
+                    return first.id.toUpperCase() === second.id.toUpperCase() ? 0 : (first.id > second.id ? 1 : -1);
                 });
 
-                document.querySelectorAll('#filters input[type="checkbox"]').forEach((item) => {
-                    item.checked = true;
-                });
                 rows.forEach(row => {
                     tbody.appendChild(row);
                 });
 
-                downloadButton.style.display = 'inline-block';
+                downloadButton.disabled = false;
+                actionButton.disabled = false;
             }
 
             function collectEntries() {
@@ -267,40 +285,40 @@
                 return line != "" && !line.match(/^#/) && line.match(/=/);
             }
 
-            async function loadFile(file) {
-                console.debug(`Loading '${file.name}'...`);
-                let text = await new Promise((resolve) => {
+            function loadFile(file) {
+                return new Promise((resolve) => {
+                    console.debug(`Loading '${file.name}'...`);
                     let fileReader = new FileReader();
-                    fileReader.onload = (e) => resolve(fileReader.result);
+                    fileReader.onload = (e) => resolve(fileReader.result, file.name);
                     fileReader.readAsText(file);
                 });
-                return text;
             }
 
             function splitContents(raw, fileName) {
-                console.debug(`Splitting raw data for '${fileName}'...`);
-                let lines = raw.split('\n');
-                let result = {};
-                lines.forEach(line => {
-                    if (lineMatches(line)) {
-                        let index = line.indexOf("=");
-                        let key = line.substr(0, index).trim();
-                        let value = line.substr(index + 1).trim();
-                        if (result.hasOwnProperty(key)) {
-                            console.warn(`Duplicate value found in '${fileName}' for '${key}': '${result[key]}' => '${value}'.`);
-                        } 
-                        result[key] = value;
-                        
-                    }
+                return new Promise((resolve) => {
+                    console.debug(`Splitting raw data for '${fileName}'...`);
+                    let lines = raw.split('\n');
+                    let result = {};
+                    lines.forEach(line => {
+                        if (lineMatches(line)) {
+                            let index = line.indexOf("=");
+                            let key = line.substr(0, index).trim();
+                            let value = line.substr(index + 1).trim();
+                            if (result.hasOwnProperty(key)) {
+                                console.warn(`Duplicate value found in '${fileName}' for '${key}': '${result[key]}' => '${value}'.`);
+                            } 
+                            result[key] = value;
+                            
+                        }
+                    });
+                    resolve(result);
                 });
-                return result;
             }
 
             async function getProperties(file) {
-                let res = loadFile(file).then(data => {
-                    return splitContents(data, file.name);
-                });
-                return res;
+                let res = await loadFile(file)
+                let props = await splitContents(res, file.name);
+                return props;
             }
         </script>
 

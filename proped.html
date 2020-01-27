@@ -197,11 +197,14 @@
 
                 table.querySelectorAll('.firstFileName').forEach((th) => {
                     th.textContent = first.files[0].name;
-                })
+                });
                 table.querySelectorAll('.secondFileName').forEach((th) => {
                     th.textContent = second.files[0].name;
-                })
-
+                });
+                let tbody = table.querySelector('tbody');
+                tbody.childNodes.forEach((node) => {
+                    node.remove();
+                });
                 let rows = [];
 
                 for (let key in props1) {
@@ -224,7 +227,6 @@
                 document.querySelectorAll('#filters input[type="checkbox"]').forEach((item) => {
                     item.checked = true;
                 });
-                let tbody = table.querySelector('tbody');
                 rows.forEach(row => {
                     tbody.appendChild(row);
                 });

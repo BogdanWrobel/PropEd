@@ -1,0 +1,314 @@
+<!doctype html>
+<html>
+    <head>
+        <title>PropEd</title>
+        <meta charset="utf-8">
+        <style>
+            table#entries {
+                width: 100%;
+            }
+            table.hideSame#entries tr.same {
+                display: none;
+            }
+            table.hideNew#entries tr.new {
+                display: none;
+            }
+            table.hideDifferent#entries tr.different {
+                display: none;
+            }
+
+            table#entries {
+                margin-top: 1.7em;
+                table-layout: fixed;
+            }
+
+            tr.same td {
+                color: #4caf50;
+            }
+            tr.different td {
+                color: #f44336;
+            }
+            tr.new td {
+                color: #2196f3;
+            }
+            tbody tr:hover {
+                background-color: #fff9c4;
+            }
+            tbody tr:hover th {
+                background-color: transparent;
+            }
+
+            tbody th {
+                cursor: default;
+            }
+
+            th {
+                background-color: #eeeeee;
+            }
+            td.propval {
+                cursor: pointer;
+            }
+            td.propval:hover {
+                text-decoration: underline;
+            }
+            .hidden {
+                display: none !important;
+            }
+            #downloadLink, #downloadButton {
+                display: none;
+            }
+            body {
+                font-family: Arial, Helvetica, sans-serif;
+                font-size: 10pt;
+            }
+            #toolbar {
+                position: fixed;
+                top: 0;
+                height: auto;
+                width: 100%;
+                background-color: white;
+                padding: .2em;
+            }
+
+            .finalValue  {
+                color: #999999 !important;
+            }
+
+            .finalValue > input {
+                width: calc(100% - 6em);
+            }
+
+            .finalValue label {
+                width: 5em;
+                display: inline-block;
+                cursor: pointer;
+            }
+
+            #filters label {
+                cursor: pointer;
+            }
+        </style>
+    </head>
+    <body>
+        <div id="toolbar">
+            <input type="file" id="first">
+            <input type="file" id="second">
+            <button id="action" disabled="disabled">Load files</button>
+            <button id="downloadButton">Download</button>
+            <a id="downloadLink" download="local.properties">test</a>    
+        </div>
+        <table id="entries">
+            <thead>
+                <tr><th colspan="4" id="filters">
+                    show: 
+                    <label><input type="checkbox" checked="checked" id="showEqual" data-filter="Same">equal</label>
+                    <label><input type="checkbox" checked="checked" id="showDifferent" data-filter="Different">different</label>
+                    <label><input type="checkbox" checked="checked" id="showNew" data-filter="New">new</label>
+                </th></tr>
+                <tr><th>key</th><th class="firstFileName">first</th><th class="secondFileName">second</th><th>final</th></tr>
+            </thead>
+            <tbody></tbody>
+            <tfoot>
+                <tr><th>key</th><th class="firstFileName">first</th><th class="secondFileName">second</th><th>final</th></tr>
+            </tfoot>
+        </table>
+        <script>
+            let first = document.getElementById('first');
+            let second = document.getElementById('second');
+            let actionButton = document.getElementById('action');
+            let table = document.getElementById('entries');
+            let downloadButton = document.getElementById('downloadButton');
+            let downloadLink = document.getElementById('downloadLink');
+
+            document.querySelectorAll('#filters input[type="checkbox"]').forEach((item) => {
+                item.addEventListener('change', () => {
+                    if (item.checked) {
+                        table.classList.remove(`hide${item.dataset.filter}`);
+                    } else {
+                        table.classList.add(`hide${item.dataset.filter}`);
+                    }
+                })
+            });
+
+            function createRow(key, value1, value2) {
+                let tr = document.createElement('tr');
+                tr.id = key;
+
+                tr.classList.add(value1 == value2 ? "same" : ((value1 == "" || value2 == "") ? "new" : "different"));
+
+                let th = document.createElement('th');
+                th.textContent = key;
+                tr.appendChild(th);
+                [value1, value2].forEach(val => {
+                    let td = document.createElement('td');
+                    td.textContent = val;
+                    td.classList.add('propval');
+                    td.title = "Select this value";
+                    td.addEventListener('click', () => {
+                        setFinalValue(key, val);
+                    });
+                    tr.appendChild(td);
+                });
+
+                let td = document.createElement('td');
+                td.classList.add('finalValue');
+                let input = document.createElement('input');
+                input.name = key;
+                input.type = 'text';
+                td.title = `Property: ${key}`;
+                td.appendChild(input);
+                // [value1, value2].forEach((val, index) => {
+                //     let button = document.createElement('button');
+                //     button.addEventListener('click', () => {
+                //         setFinalValue(key, val);
+                //         // input.value = val;
+                //     });
+                //     button.textContent = (index + 1);
+                //     td.appendChild(button); 
+                // });
+                let label = document.createElement('label');
+                let checkbox = document.createElement('input');
+                let span = document.createElement('span');
+                span.textContent = 'include';
+                checkbox.type = 'checkbox';
+                checkbox.checked = true;
+                span.title = "Include in final file"
+
+                label.appendChild(checkbox);
+                label.appendChild(span);
+                td.appendChild(label);
+                tr.appendChild(td);
+
+                if (value1 == "" || value2 == "" || value1 == value2) {
+                    input.value = value1 || value2;
+                }
+
+                return tr;
+            }
+
+            function setFinalValue(propname, propvalue) {
+                let input = document.querySelector(`input[name="${propname}"]`);
+                input.value = propvalue;
+            }
+
+            async function loadFiles() {
+                let props1 = await getProperties(first.files[0]);
+                let props2 = await getProperties(second.files[0]);
+
+                table.querySelectorAll('.firstFileName').forEach((th) => {
+                    th.textContent = first.files[0].name;
+                })
+                table.querySelectorAll('.secondFileName').forEach((th) => {
+                    th.textContent = second.files[0].name;
+                })
+
+                let rows = [];
+
+                for (let key in props1) {
+                    if (props2.hasOwnProperty(key)) {
+                        rows.push(createRow(key, props1[key], props2[key]));
+                        delete props2[key];
+                    } else {
+                        rows.push(createRow(key, props1[key], ""));
+                    }
+                }
+
+                for (let key in props2) {
+                    rows.push(createRow(key, "", props2[key]));
+                }
+
+                rows.sort((first, second) => {
+                    return first.id == second.id ? 0 : (first.id > second.id ? 1 : -1);
+                });
+
+                document.querySelectorAll('#filters input[type="checkbox"]').forEach((item) => {
+                    item.checked = true;
+                });
+                let tbody = table.querySelector('tbody');
+                rows.forEach(row => {
+                    tbody.appendChild(row);
+                });
+
+                downloadButton.style.display = 'inline-block';
+            }
+
+            function collectEntries() {
+                let totalEmpty = 0;
+                table.querySelectorAll('tr.different').forEach((row) => {
+                    if (row.querySelector('.finalValue input[type="text"]').value == "" && row.querySelector('.finalValue input[type="checkbox"]').checked) {
+                        totalEmpty++;
+                    }
+                });
+                if (totalEmpty == 0 || confirm(`There are ${totalEmpty} conflicting entries selected for saving with no value. Continue?`)) {
+                    let entries = table.querySelectorAll('.finalValue');
+                    let blobData = "";
+                    entries.forEach(entry => {
+                        if (entry.querySelector('input[type="checkbox"]:checked')) {
+                            let val = entry.querySelector('input[type="text"]');
+                            blobData += val.name + "=" + val.value + "\n";
+                        }
+                    });
+                    let blob = new Blob([blobData], {type: 'application/binary'});
+                    let url = window.URL.createObjectURL(blob);
+                    
+                    downloadLink.href = url;
+                    downloadLink.click();
+                    window.URL.revokeObjectURL(url);
+                }
+                return false;
+            }
+
+            actionButton.addEventListener('click', loadFiles);
+            downloadButton.addEventListener('click', collectEntries);
+            [first, second].forEach((item) => {
+                item.addEventListener('change', (obj) => {
+                    actionButton.disabled = (first.files.length == 0 || second.files.length == 0);
+                    if (!actionButton.disabled) {
+                        actionButton.click();
+                    }
+                })
+            });
+
+            function lineMatches(line) {
+                return line != "" && !line.match(/^#/) && line.match(/=/);
+            }
+
+            async function loadFile(file) {
+                let text = await new Promise((resolve) => {
+                    let fileReader = new FileReader();
+                    fileReader.onload = (e) => resolve(fileReader.result);
+                    fileReader.readAsText(file);
+                });
+                return text;
+            }
+
+            function splitContents(raw) {
+                console.log('Splitting raw data.');
+                let lines = raw.split('\n');
+                let result = {};
+                lines.forEach(line => {
+                    if (lineMatches(line)) {
+                        let index = line.indexOf("=");
+                        let key = line.substr(0, index).trim();
+                        let value = line.substr(index + 1).trim();
+                        if (result.hasOwnProperty(key)) {
+                            console.log(key);
+                        } 
+                        result[key] = value;
+                        
+                    }
+                });
+                return result;
+            }
+
+            async function getProperties(file) {
+                console.log(`Loading ${file.name}`);
+                let res = loadFile(file).then(data => {
+                    return splitContents(data);
+                });
+                return res;
+            }
+        </script>
+
+    </body>
+</html>

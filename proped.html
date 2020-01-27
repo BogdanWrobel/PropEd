@@ -47,6 +47,7 @@
             }
             td.propval {
                 cursor: pointer;
+                word-wrap: break-word;
             }
             td.propval:hover {
                 text-decoration: underline;
@@ -130,6 +131,17 @@
                 })
             });
 
+            actionButton.addEventListener('click', loadFiles);
+            downloadButton.addEventListener('click', collectEntries);
+            [first, second].forEach((item) => {
+                item.addEventListener('change', (obj) => {
+                    actionButton.disabled = (first.files.length == 0 || second.files.length == 0);
+                    if (!actionButton.disabled) {
+                        actionButton.click();
+                    }
+                })
+            });
+
             function createRow(key, value1, value2) {
                 let tr = document.createElement('tr');
                 tr.id = key;
@@ -157,15 +169,6 @@
                 input.type = 'text';
                 td.title = `Property: ${key}`;
                 td.appendChild(input);
-                // [value1, value2].forEach((val, index) => {
-                //     let button = document.createElement('button');
-                //     button.addEventListener('click', () => {
-                //         setFinalValue(key, val);
-                //         // input.value = val;
-                //     });
-                //     button.textContent = (index + 1);
-                //     td.appendChild(button); 
-                // });
                 let label = document.createElement('label');
                 let checkbox = document.createElement('input');
                 let span = document.createElement('span');
@@ -260,22 +263,12 @@
                 return false;
             }
 
-            actionButton.addEventListener('click', loadFiles);
-            downloadButton.addEventListener('click', collectEntries);
-            [first, second].forEach((item) => {
-                item.addEventListener('change', (obj) => {
-                    actionButton.disabled = (first.files.length == 0 || second.files.length == 0);
-                    if (!actionButton.disabled) {
-                        actionButton.click();
-                    }
-                })
-            });
-
             function lineMatches(line) {
                 return line != "" && !line.match(/^#/) && line.match(/=/);
             }
 
             async function loadFile(file) {
+                console.debug(`Loading '${file.name}'...`);
                 let text = await new Promise((resolve) => {
                     let fileReader = new FileReader();
                     fileReader.onload = (e) => resolve(fileReader.result);
@@ -284,8 +277,8 @@
                 return text;
             }
 
-            function splitContents(raw) {
-                console.log('Splitting raw data.');
+            function splitContents(raw, fileName) {
+                console.debug(`Splitting raw data for '${fileName}'...`);
                 let lines = raw.split('\n');
                 let result = {};
                 lines.forEach(line => {
@@ -294,7 +287,7 @@
                         let key = line.substr(0, index).trim();
                         let value = line.substr(index + 1).trim();
                         if (result.hasOwnProperty(key)) {
-                            console.log(key);
+                            console.warn(`Duplicate value found in '${fileName}' for '${key}': '${result[key]}' => '${value}'.`);
                         } 
                         result[key] = value;
                         
@@ -304,9 +297,8 @@
             }
 
             async function getProperties(file) {
-                console.log(`Loading ${file.name}`);
                 let res = loadFile(file).then(data => {
-                    return splitContents(data);
+                    return splitContents(data, file.name);
                 });
                 return res;
             }
